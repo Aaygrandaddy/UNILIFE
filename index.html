@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1118" />
+    <meta name="color-scheme" content="dark" />
+    <title>Force Life</title>
+    <meta
+      name="description"
+      content="Force Life is an open-world 3D campus game set at a fictional air force institute in Kaduna. Drive, explore, chat with friends, ride Waka, make it to lectures, stand for Retreat and beat curfew, in your browser."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Force Life" />
+    <meta property="og:description" content="An open-world campus life game in your browser." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="game-root" role="application" aria-label="Force Life 3D campus world. Use W A S D to move."></div>
+
+      <div id="loading-screen" class="loading-screen" role="status" aria-live="polite">
+        <div class="loading-card">
+          <span class="brand-mark" aria-hidden="true">F</span>
+          <h1>Force Life</h1>
+          <p id="loading-text">Loading campus…</p>
+          <progress id="loading-progress" max="100" value="0" aria-label="Loading progress"></progress>
+          <small>A fictional campus. Not affiliated with any real institution or the Nigerian Air Force.</small>
+        </div>
+      </div>
+
+      <noscript><p class="noscript">Force Life needs JavaScript and WebGL. Turn on JavaScript and reload the page.</p></noscript>
+
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">F</span>
+          <div>
+            <strong>Force Life</strong>
+            <small>Kaduna · Early access</small>
+          </div>
+        </div>
+        <div class="status-panel">
+          <div class="status-time"><span id="hud-clock">7:30 AM</span><small id="hud-day">MON · DAY 1</small></div>
+          <div class="status-money" id="hud-money" aria-label="Money">₦25,000</div>
+          <div class="status-alert" id="hud-alert" data-level="0" aria-label="Provost alert level 0 of 3">◇◇◇</div>
+        </div>
+      </header>
+
+      <section id="mission" class="mission" aria-live="polite" aria-label="Current objective">
+        <small>Objective</small>
+        <strong id="mission-title"></strong>
+        <p id="mission-text"></p>
+      </section>
+
+      <div class="radar">
+        <canvas id="minimap" width="200" height="200" aria-hidden="true"></canvas>
+        <div class="radar-info">
+          <strong id="location-name" aria-live="polite">Main Gate</strong>
+          <div class="energy" aria-label="Energy"><span id="energy-fill"></span></div>
+        </div>
+      </div>
+
+      <div id="speedo" class="speedo" hidden><span id="speed-value">0</span><small>km/h</small></div>
+
+      <div id="fade" class="fade" aria-hidden="true"></div>
+
+      <button type="button" id="phone-button" class="phone-button" aria-label="Open phone (P)">
+        <span aria-hidden="true">📱</span><i id="phone-badge" class="badge" hidden>0</i>
+      </button>
+      <section id="phone" class="phone" aria-label="Phone" aria-hidden="true">
+        <div class="phone-status">
+          <span id="phone-time">7:30</span>
+          <span aria-hidden="true">▂▄▆ 4G ▮▮▮</span>
+        </div>
+        <div id="phone-screen" class="phone-screen"></div>
+        <div class="phone-nav">
+          <button type="button" id="phone-home" aria-label="Home screen">●</button>
+          <button type="button" id="phone-close" aria-label="Put phone away">Close</button>
+        </div>
+      </section>
+
+      <button type="button" id="menu-button" class="menu-button" aria-label="Menu (M)"><span aria-hidden="true">⚙</span></button>
+      <div id="menu" class="menu" role="dialog" aria-modal="true" aria-label="Menu" hidden>
+        <div class="menu-card">
+          <nav class="menu-tabs" aria-label="Menu sections">
+            <strong class="menu-title">Paused</strong>
+            <button type="button" data-tab="resume">Resume</button>
+            <button type="button" data-tab="help">How to play</button>
+            <button type="button" data-tab="settings">Settings</button>
+            <button type="button" data-tab="terms">Terms</button>
+            <button type="button" data-tab="privacy">Privacy</button>
+          </nav>
+          <div id="menu-body" class="menu-body"></div>
+        </div>
+      </div>
+
+      <section id="ride-panel" class="ride-panel" aria-label="Ride controls" hidden>
+        <small data-ride="trip"></small>
+        <div class="ride-now"><strong data-ride="station"></strong><span data-ride="track"></span></div>
+        <div class="ride-buttons">
+          <button type="button" data-ride="prev" aria-label="Previous station">⏮</button>
+          <button type="button" data-ride="play" aria-label="Play radio">▶</button>
+          <button type="button" data-ride="next" aria-label="Next station">⏭</button>
+          <button type="button" data-ride="skip">New song</button>
+          <label class="ride-vol"><span>Vol</span><input type="range" id="ride-volume" data-ride="volume" min="0" max="100" value="60" /></label>
+          <button type="button" data-ride="cam">Camera: chase</button>
+        </div>
+      </section>
+      <div id="prompt" class="prompt" role="status" hidden></div>
+      <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div id="banner" class="banner" role="status" aria-live="assertive">
+        <strong id="banner-title"></strong>
+        <span id="banner-text"></span>
+      </div>
+
+      <ul id="controls-hint" class="controls-hint" aria-label="Keyboard controls">
+        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move / drive</li>
+        <li><kbd>Shift</kbd> Run</li>
+        <li><kbd>F</kbd> Enter / exit vehicle</li>
+        <li><kbd>E</kbd> Interact / enter buildings</li>
+        <li><kbd>Space</kbd> Handbrake · <kbd>Q</kbd> Horn</li>
+        <li>Drag or double-click to look</li>
+        <li><kbd>P</kbd> Phone · <kbd>C</kbd> Ride camera</li>
+        <li><kbd>M</kbd> Menu · <kbd>H</kbd> Hide help</li>
+      </ul>
+
+      <div class="mobile-controls" role="group" aria-label="Touch controls">
+        <div class="dpad">
+          <button type="button" data-move="forward" aria-label="Move forward">▲</button>
+          <div>
+            <button type="button" data-move="left" aria-label="Move left">◀</button>
+            <button type="button" data-move="back" aria-label="Move back">▼</button>
+            <button type="button" data-move="right" aria-label="Move right">▶</button>
+          </div>
+        </div>
+        <div class="action-buttons">
+          <button type="button" id="run-button">Run</button>
+          <button type="button" id="interact-button">Act</button>
+          <button type="button" id="vehicle-button">Car</button>
+          <button type="button" id="horn-button">Horn</button>
+        </div>
+      </div>
+
+      <footer class="bottom-hud">
+        <span>Fictional campus · Not affiliated with any real institution</span>
+        <span>Build <span id="build-version">0.0.0</span> <span id="fps" aria-hidden="true">-- FPS</span></span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

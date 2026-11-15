@@ -1,0 +1,22 @@
+{
+  "name": "force-life",
+  "version": "0.5.0",
+  "description": "Force Life: open-world Nigerian campus game",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^11.0.2",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "firebase-tools": "^13.29.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  },
+  "private": true,
+  "type": "module"
+}

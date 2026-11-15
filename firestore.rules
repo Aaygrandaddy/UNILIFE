@@ -1,0 +1,107 @@
+rules_version = '2';
+
+// Security rules for Force Life. Every read and write needs a signed-in player,
+// and players can only change their own data.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function profileShape(d) {
+      return d.keys().hasOnly(['username', 'displayName', 'dept', 'level', 'skin', 'lastSeen', 'blocked'])
+        && (!('blocked' in d) || (d.blocked is list && d.blocked.size() <= 500))
+        && d.username is string && d.username.matches('^[a-z0-9_]{3,20}$')
+        && d.displayName is string && d.displayName.size() <= 30
+        && d.dept is string && d.dept.size() <= 60
+        && d.level is string && d.level.size() <= 4
+        && d.skin is int;
+    }
+
+    // True unless `uid` has blocked the signed-in player.
+    function notBlockedBy(uid) {
+      let other = get(/databases/$(database)/documents/users/$(uid)).data;
+      return !('blocked' in other) || !(request.auth.uid in other.blocked);
+    }
+    function otherMember(chatId) {
+      let ids = chatId.split('_');
+      return ids[0] == request.auth.uid ? ids[1] : ids[0];
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == uid && profileShape(request.resource.data);
+      allow update: if signedIn() && request.auth.uid == uid && profileShape(request.resource.data)
+        && request.resource.data.username == resource.data.username;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Username -> uid, to keep usernames unique. Readable before sign-up so the form can check it.
+    match /usernames/{name} {
+      allow get: if true;
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid && name.matches('^[a-z0-9_]{3,20}$');
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // Saved progress: private to its owner.
+    match /saves/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow write: if signedIn() && request.auth.uid == uid
+        && request.resource.data.v == 1
+        && request.resource.data.money is number && request.resource.data.tokens is number
+        && request.resource.data.mission is int && request.resource.data.mission >= 0 && request.resource.data.mission <= 50;
+    }
+
+    // Reports go to moderators (read them in the Firebase console). Players can only file them.
+    match /reports/{id} {
+      allow create: if signedIn() && request.resource.data.reporter == request.auth.uid
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 100
+        && request.resource.data.excerpt is string && request.resource.data.excerpt.size() <= 500;
+    }
+
+    // One-to-one chats. The chat id is the two uids, sorted and joined with "_".
+    match /chats/{chatId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      allow create, update: if signedIn()
+        && request.resource.data.members is list && request.resource.data.members.size() == 2
+        && request.auth.uid in request.resource.data.members
+        && chatId == request.resource.data.members[0] + '_' + request.resource.data.members[1]
+        && notBlockedBy(otherMember(chatId))
+        && request.resource.data.lastText is string && request.resource.data.lastText.size() <= 1000;
+
+      match /messages/{messageId} {
+        allow read: if signedIn() && request.auth.uid in chatId.split('_');
+        allow create: if signedIn() && request.auth.uid in chatId.split('_')
+          && notBlockedBy(otherMember(chatId))
+          && request.resource.data.keys().hasOnly(['from', 'text', 'at'])
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000;
+      }
+    }
+
+    // Yarn (text) and Frame (photo) posts. Others may only add or remove their own like.
+    match /posts/{postId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.kind in ['yarn', 'frame']
+        && request.resource.data.text is string && request.resource.data.text.size() <= 280
+        && request.resource.data.likes == []
+        && (!('image' in request.resource.data) || (request.resource.data.image is string && request.resource.data.image.size() < 400000));
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+        && request.resource.data.likes.toSet().difference(resource.data.likes.toSet()).hasOnly([request.auth.uid])
+        && resource.data.likes.toSet().difference(request.resource.data.likes.toSet()).hasOnly([request.auth.uid]);
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // Flash snaps: only the recipient can see one, and opening it deletes it.
+    match /snaps/{snapId} {
+      allow create: if signedIn() && request.resource.data.from == request.auth.uid
+        && notBlockedBy(request.resource.data.to)
+        && request.resource.data.image is string && request.resource.data.image.size() < 400000;
+      allow read, delete: if signedIn() && resource.data.to == request.auth.uid;
+    }
+  }
+}
