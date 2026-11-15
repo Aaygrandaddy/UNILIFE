@@ -89,7 +89,7 @@ export class FirebaseBackend implements Backend {
         const ref = doc(this.db, 'usernames', i.username);
         if ((await t.get(ref)).exists()) throw new Error('That username is taken.');
         t.set(ref, { uid });
-        t.set(doc(this.db, 'users', uid), { ...profile, lastSeen: serverTimestamp() });
+        t.set(doc(this.db, 'users', uid), { ...profile, lastSeen: serverTimestamp(), consent: { version: i.consentVersion, at: serverTimestamp() } });
       });
     } catch (e) {
       // someone took the username at the same moment: remove the half-made account
@@ -176,7 +176,8 @@ export class FirebaseBackend implements Backend {
 
   async sendSnap(toUid: string, image: string) {
     const me = this.me!;
-    await setDoc(doc(collection(this.db, 'snaps')), { from: me.uid, fromName: me.displayName, to: toUid, image, at: serverTimestamp() }).catch((e) => {
+    // unopened snaps are deleted after 30 days by a Firestore TTL policy on expireAt
+    await setDoc(doc(collection(this.db, 'snaps')), { from: me.uid, fromName: me.displayName, to: toUid, image, at: serverTimestamp(), expireAt: Timestamp.fromMillis(Date.now() + 30 * 86_400_000) }).catch((e) => {
       throw new Error(e?.code === 'permission-denied' ? 'You can’t send snaps to this player.' : 'Snap not sent. Check your connection.');
     });
   }
@@ -217,7 +218,34 @@ export class FirebaseBackend implements Backend {
       reason: r.reason,
       excerpt: (r.excerpt ?? '').slice(0, 500),
       at: serverTimestamp(),
+      // deleted automatically after 12 months by a Firestore TTL policy on expireAt
+      expireAt: Timestamp.fromMillis(Date.now() + 365 * 86_400_000),
     });
+  }
+
+  async exportData() {
+    const me = this.me;
+    const user = this.auth.currentUser;
+    if (!me || !user) return {};
+    const plain = (v: unknown): unknown => (v instanceof Timestamp ? v.toDate().toISOString() : Array.isArray(v) ? v.map(plain) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, plain(x)])) : v);
+    const [profile, save, posts, chats] = await Promise.all([
+      getDoc(doc(this.db, 'users', me.uid)),
+      getDoc(doc(this.db, 'saves', me.uid)),
+      getDocs(query(collection(this.db, 'posts'), where('uid', '==', me.uid))),
+      getDocs(query(collection(this.db, 'chats'), where('members', 'array-contains', me.uid))),
+    ]);
+    const messages = (
+      await Promise.all(chats.docs.map(async (c) => (await getDocs(query(collection(this.db, 'chats', c.id, 'messages'), where('from', '==', me.uid)))).docs.map((m) => ({ chat: c.id, ...(plain(m.data()) as object) }))))
+    ).flat();
+    return {
+      exportedAt: new Date().toISOString(),
+      account: { email: user.email, created: user.metadata.creationTime, lastSignIn: user.metadata.lastSignInTime },
+      profile: plain(profile.data()),
+      savedProgress: plain(save.data() ?? null),
+      posts: posts.docs.map((d) => ({ id: d.id, ...(plain(d.data()) as object) })),
+      messagesYouSent: messages,
+      note: 'Reports you filed are held by moderators for up to 12 months. Email the contact in the Privacy Policy for a copy.',
+    };
   }
 
   async deleteAccount(password: string) {

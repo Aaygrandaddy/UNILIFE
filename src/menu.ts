@@ -1,3 +1,4 @@
+declare const __APP_VERSION__: string;
 /** Pause menu: resume, how to play, settings, legal pages. Settings persist in this browser. */
 
 export type Quality = 'low' | 'medium' | 'high';
@@ -34,7 +35,7 @@ function saveSettings(s: Settings) {
   }
 }
 
-type Tab = 'resume' | 'help' | 'settings' | 'terms' | 'privacy';
+type Tab = 'resume' | 'help' | 'settings' | 'terms' | 'privacy' | 'about';
 
 export class Menu {
   open = false;
@@ -77,6 +78,7 @@ export class Menu {
     if (tab === 'help') this.help();
     else if (tab === 'settings') this.settingsView();
     else if (tab === 'terms' || tab === 'privacy') this.legal(tab);
+    else if (tab === 'about') this.about();
   }
 
   private help() {
@@ -144,6 +146,24 @@ export class Menu {
     });
     f.addEventListener('submit', (e) => e.preventDefault());
     this.body.append(f);
+  }
+
+  private about() {
+    this.body.innerHTML = `
+      <h2>About Force Life</h2>
+      <p>Version ${__APP_VERSION__} · Early access</p>
+      <p>© 2026 [OWNER NAME]. All rights reserved. Game code, design, generated art, music and sound are original works protected by the Copyright Act 2022.</p>
+      <p>Force Life is set on a fictional campus. Places, people, businesses and organisations in the game are fictional and are not affiliated with any real institution or with the Nigerian Air Force.</p>
+      <h3>Open-source software</h3>
+      <p>Force Life is built with these open-source projects, used under their licences:</p>
+      <ul>
+        <li>three.js (MIT License) — 3D graphics</li>
+        <li>Firebase JavaScript SDK (Apache License 2.0) — accounts and online play</li>
+        <li>Oswald and Inter typefaces (SIL Open Font License 1.1), via Fontsource</li>
+      </ul>
+      <p><a href="./licenses.txt" target="_blank" rel="noopener">Full licence texts for all included packages</a></p>
+      <h3>Contact</h3>
+      <p>Questions, privacy requests or copyright concerns: [CONTACT EMAIL]</p>`;
   }
 
   private async legal(page: 'terms' | 'privacy') {

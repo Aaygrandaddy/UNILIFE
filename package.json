@@ -4,10 +4,13 @@
   "description": "Force Life: open-world Nigerian campus game",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "node scripts/licenses.mjs && tsc && vite build",
+    "preview": "vite preview",
+    "licenses": "node scripts/licenses.mjs"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.1.0",
+    "@fontsource/oswald": "^5.1.0",
     "firebase": "^11.0.2",
     "three": "^0.170.0"
   },

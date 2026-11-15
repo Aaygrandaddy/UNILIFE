@@ -1,4 +1,4 @@
-import { chatIdOf, isBlocked, isOnline, REPORT_REASONS, type Backend, type Post, type PostKind, type Profile, type ReportInput, type Snap, type Unsub } from './online/backend';
+import { chatIdOf, isBlocked, isOnline, MIN_AGE, POLICY_VERSION, REPORT_REASONS, type Backend, type Post, type PostKind, type Profile, type ReportInput, type Snap, type Unsub } from './online/backend';
 import { clean } from './online/filter';
 import { TIERS, TOKEN_PRICE_NAIRA, type Place, type Rides, type Tier } from './rides';
 import { naira } from './hud';
@@ -213,22 +213,39 @@ export class Phone {
         return b;
       }));
       const btn = h('button', { type: 'submit', class: 'btn-primary' }, mode === 'in' ? 'Sign in' : 'Create account') as HTMLButtonElement;
+      const dob = h('input', { id: 'ph-dob', type: 'date', max: new Date().toISOString().slice(0, 10), autocomplete: 'bday' }) as HTMLInputElement;
       const agree = h('input', { id: 'ph-agree', type: 'checkbox' }) as HTMLInputElement;
-      const agreeRow = h('div', { class: 'agree' }, agree, h('label', { for: 'ph-agree' }, 'I am 18 or older (or have my parent or guardian’s permission) and I agree to the '),
+      const agreeRow = h('div', { class: 'agree' }, agree, h('label', { for: 'ph-agree' }, 'I have read and agree to the '),
         h('button', { type: 'button', class: 'btn-inline', onclick: () => this.game.openLegal('terms') }, 'Terms'), ' and ',
         h('button', { type: 'button', class: 'btn-inline', onclick: () => this.game.openLegal('privacy') }, 'Privacy Policy'), '.');
       const form = h('form', { class: 'form', novalidate: true, onsubmit: async (e: Event) => {
         e.preventDefault();
         err.textContent = '';
         btn.disabled = true;
-        if (mode === 'up' && !agree.checked) {
-          err.textContent = 'Please confirm your age (or guardian permission) and accept the Terms and Privacy Policy.';
-          btn.disabled = false;
-          return;
+        if (mode === 'up') {
+          // Age is checked here and not stored: only the fact that the check passed is kept.
+          const born = dob.value ? new Date(dob.value + 'T00:00:00') : null;
+          const now = new Date();
+          const age = born ? now.getFullYear() - born.getFullYear() - (now < new Date(now.getFullYear(), born.getMonth(), born.getDate()) ? 1 : 0) : -1;
+          if (age < 0 || age > 120) {
+            err.textContent = 'Enter your date of birth.';
+            btn.disabled = false;
+            return;
+          }
+          if (age < MIN_AGE) {
+            err.textContent = `Force Life accounts are for players aged ${MIN_AGE} and over. You can still explore the campus without an account.`;
+            btn.disabled = false;
+            return;
+          }
+          if (!agree.checked) {
+            err.textContent = 'Please read and accept the Terms and Privacy Policy to create an account.';
+            btn.disabled = false;
+            return;
+          }
         }
         try {
           if (mode === 'in') await this.be.signIn(email.value, pass.value);
-          else await this.be.signUp({ email: email.value, password: pass.value, username: user.value.trim().toLowerCase(), displayName: disp.value.trim(), dept: dept.value, level: level.value.split(' ')[0], skin });
+          else await this.be.signUp({ email: email.value, password: pass.value, username: user.value.trim().toLowerCase(), displayName: disp.value.trim(), dept: dept.value, level: level.value.split(' ')[0], skin, consentVersion: POLICY_VERSION });
         } catch (x) {
           err.textContent = (x as Error).message;
         } finally {
@@ -237,7 +254,7 @@ export class Phone {
       } },
         h('label', { for: 'ph-email' }, 'Email'), email,
         h('label', { for: 'ph-pass' }, 'Password'), pass,
-        ...(mode === 'up' ? [h('label', { for: 'ph-user' }, 'Username'), user, h('label', { for: 'ph-name' }, 'Display name'), disp, h('label', { for: 'ph-dept' }, 'Department'), dept, h('label', { for: 'ph-level' }, 'Level'), level, h('span', { class: 'label' }, 'Skin tone'), skins, agreeRow] : []),
+        ...(mode === 'up' ? [h('label', { for: 'ph-user' }, 'Username'), user, h('label', { for: 'ph-name' }, 'Display name'), disp, h('label', { for: 'ph-dept' }, 'Department'), dept, h('label', { for: 'ph-level' }, 'Level'), level, h('span', { class: 'label' }, 'Skin tone'), skins, h('label', { for: 'ph-dob' }, `Date of birth (${MIN_AGE}+ only; not stored)`), dob, agreeRow] : []),
         err, btn,
       );
       wrap.append(
@@ -505,7 +522,30 @@ export class Phone {
       h('div', { class: 'legal-links' },
         h('button', { type: 'button', class: 'btn-inline', onclick: () => this.game.openLegal('terms') }, 'Terms'),
         h('button', { type: 'button', class: 'btn-inline', onclick: () => this.game.openLegal('privacy') }, 'Privacy Policy')),
+      h('button', { type: 'button', class: 'btn-inline', onclick: () => this.exportFlow() }, 'Download my data'),
       h('button', { type: 'button', class: 'btn-inline danger', onclick: () => this.deleteFlow() }, 'Delete my account'));
+  }
+
+  /** Right of access and data portability: a copy of everything stored about the player, as JSON. */
+  private async exportFlow() {
+    this.screen.replaceChildren(h('div', { class: 'app' }, this.header('Your data', '#3b82c4'), h('p', { class: 'mode-note' }, 'Collecting your data…')));
+    try {
+      const json = JSON.stringify(await this.be.exportData(), null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const box = h('textarea', { id: 'ph-export', rows: 10, readonly: true, 'aria-label': 'Your data as JSON' }) as HTMLTextAreaElement;
+      box.value = json;
+      this.screen.replaceChildren(h('div', { class: 'app' }, this.header('Your data', '#3b82c4'),
+        h('p', { class: 'mode-note' }, 'This is everything Force Life stores about you, in a standard format (JSON) you can keep or move elsewhere.'),
+        h('a', { class: 'btn-primary wide', href: url, download: `force-life-data-${this.be.me?.username ?? 'me'}.json` }, 'Download file'),
+        h('button', { type: 'button', class: 'btn-ghost', onclick: () => {
+          navigator.clipboard?.writeText(json).then(() => this.game.toast('Copied.'), () => { box.select(); this.game.toast('Select all and copy.'); });
+        } }, 'Copy to clipboard'),
+        box));
+    } catch (x) {
+      this.game.toast((x as Error).message || 'Could not collect your data. Try again.');
+      this.go('me');
+    }
   }
 
   private deleteFlow() {

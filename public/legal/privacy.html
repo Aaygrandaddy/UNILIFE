@@ -5,54 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Force Life · Privacy Policy</title>
 <style>
-  :root { color-scheme: light dark; --bg: #f7f6f2; --fg: #1c1f23; --muted: #5d636a; --accent: #1d3f73; }
+  :root { color-scheme: light dark; --bg: #f7f6f2; --fg: #1c1f23; --muted: #5d636a; --accent: #1d3f73; --line: rgba(127,127,127,0.35); }
   @media (prefers-color-scheme: dark) { :root { --bg: #0f1318; --fg: #ecebe6; --muted: #a8adb3; --accent: #8db4ea; } }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', sans-serif; }
-  main { max-width: 68ch; margin: 0 auto; padding: 32px max(16px, env(safe-area-inset-left)); }
+  main { max-width: 70ch; margin: 0 auto; padding: 32px max(16px, env(safe-area-inset-left)); }
   h1, h2 { line-height: 1.25; text-wrap: balance; } h2 { margin-top: 2em; font-size: 1.15rem; color: var(--accent); }
   .note { padding: 12px 14px; border-left: 4px solid #c9a43a; background: rgba(201,164,58,0.12); font-size: 0.95rem; }
-  small { color: var(--muted); } table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid rgba(127,127,127,0.35); padding: 6px 8px; text-align: left; vertical-align: top; font-size: 0.95rem; }
+  small { color: var(--muted); } .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; font-size: 0.93rem; }
 </style>
 </head>
 <body>
 <main>
 <h1>Privacy Policy</h1>
-<p><small>Effective date: [EFFECTIVE DATE] · Operator: [OPERATOR NAME] · Contact: [CONTACT EMAIL]</small></p>
-<p class="note">Template. Replace the bracketed details and have it reviewed by a lawyer or data protection professional before launch.</p>
+<p><small>Version 2026-11-15 · Effective: [EFFECTIVE DATE]</small></p>
+<p class="note">Draft prepared for review. Fill in the bracketed details and have it checked by a Nigerian lawyer or an NDPC-licensed Data Protection Compliance Organisation before launch.</p>
 
-<p>Force Life ("the game", "we") is an online game set on a fictional campus. This policy explains what personal data we collect, why, and the choices you have. We follow the Nigeria Data Protection Act 2023 (NDPA).</p>
+<p>This policy explains how Force Life ("the game", "we", "us") collects and uses personal data, in line with the Nigeria Data Protection Act 2023 (NDPA) and the regulations and directives of the Nigeria Data Protection Commission (NDPC).</p>
 
-<h2>What we collect</h2>
-<table>
-<tr><th>Data</th><th>Why</th></tr>
-<tr><td>Email address and password (the password is handled by Google Firebase Authentication; we never see it)</td><td>To create and secure your account</td></tr>
-<tr><td>Username, display name, department, level and skin tone you choose</td><td>To show your profile to other players</td></tr>
-<tr><td>Messages, posts, photos and snaps you create in the game</td><td>To deliver them to the people you send them to or show them in feeds</td></tr>
-<tr><td>Game progress (money, tokens, missions, position) and the time you were last online</td><td>To save your progress and show friends when you are online</td></tr>
-<tr><td>Reports you file and accounts you block</td><td>To keep players safe</td></tr>
-</table>
-<p>Photos and snaps are screenshots of the game world, not your device's camera. We do not collect your location, contacts or device camera.</p>
+<h2>1. Who we are</h2>
+<p>The data controller is <strong>[OPERATOR LEGAL NAME]</strong>, [CAC REGISTRATION NUMBER, IF ANY], [POSTAL ADDRESS], Nigeria.<br />
+Email: <strong>[CONTACT EMAIL]</strong> · Data Protection Officer: <strong>[DPO NAME AND EMAIL]</strong></p>
 
-<h2>Legal basis</h2>
-<p>We process your data to provide the service you signed up for (contract) and, for safety features such as reports, for our legitimate interest in keeping the game safe. Where the law requires consent, we ask for it.</p>
+<h2>2. What we collect, why, and our lawful basis</h2>
+<div class="wrap"><table>
+<tr><th>Data</th><th>Purpose</th><th>Lawful basis (NDPA s.25)</th><th>Kept for</th></tr>
+<tr><td>Email address; password (held only as a secure hash by Google Firebase Authentication; we never see it)</td><td>Create and secure your account; sign-in</td><td>Contract</td><td>Until you delete your account</td></tr>
+<tr><td>Username, display name, department, level, skin tone</td><td>Your public profile in the game</td><td>Contract</td><td>Until you delete your account</td></tr>
+<tr><td>Confirmation that you passed the 18+ age check, and the version and time you accepted these terms</td><td>Keep under-18s out; prove consent</td><td>Legal obligation</td><td>Until you delete your account</td></tr>
+<tr><td>Messages, posts, photos and snaps you create</td><td>Deliver them to the people you choose, or show them in feeds</td><td>Contract</td><td>Posts: until you delete them or your account. Messages: until deletion of the account of either person. Unopened snaps: 30 days; opened snaps are deleted immediately</td></tr>
+<tr><td>Game progress (money, tokens, missions, time, position); last time online</td><td>Save progress; show friends when you are online</td><td>Contract</td><td>Until you delete your account</td></tr>
+<tr><td>People you block; reports you file or that are filed about you</td><td>Keep players safe and enforce the Terms</td><td>Legitimate interest (safety)</td><td>Blocks: until you remove them. Reports: 12 months</td></tr>
+</table></div>
+<p>We do <strong>not</strong> collect your date of birth (it is checked on your device and discarded), location, contacts, phone camera or microphone. Photos in the game are pictures of the game world. We do not sell personal data, show targeted advertising, or make decisions about you by automated means that have legal or similar effects.</p>
+<p>Giving your email and accepting these terms is required to create an account; without them you can still explore the campus without an account.</p>
 
-<h2>Children</h2>
-<p>Under the NDPA, a child is anyone under 18. If you are under 18 you may only create an account with the permission of a parent or guardian. If we learn that a child has an account without that permission, we will delete it. Parents can contact us at [CONTACT EMAIL].</p>
+<h2>3. Device storage</h2>
+<p>The game stores small amounts of data in your browser: your settings, your sign-in session (managed by Firebase), and, in offline mode, your account and chats. This storage is strictly necessary for the game to work. Clearing your browser data removes it.</p>
 
-<h2>Who we share data with</h2>
-<p>We use Google Firebase (Authentication, Firestore database and Hosting) to run the game. Google processes data on our behalf and may store it outside Nigeria, under safeguards described in Google's terms. We do not sell your data. We may disclose data if the law requires it.</p>
+<h2>4. Who we share data with</h2>
+<p>Other players see your public profile, your posts and your online status, and the people you message see your messages. Our service provider Google LLC (Firebase Authentication, Cloud Firestore and Firebase Hosting) processes data on our behalf under the Firebase Data Processing and Security Terms. We may disclose data where Nigerian law requires it, for example to comply with a lawful order.</p>
 
-<h2>How long we keep it</h2>
-<p>We keep your data while your account exists. When you delete your account (Phone → Profile → Delete my account), we delete your profile, username, posts and saved progress straight away. Messages you already sent remain with the people who received them. Reports are kept for up to 12 months for safety purposes.</p>
+<h2>5. Transfers outside Nigeria</h2>
+<p>Firebase stores data in data centres that may be outside Nigeria ([FIRESTORE REGION, e.g. europe-west1]). We transfer data on the basis of appropriate safeguards under NDPA sections 41–43, namely Google's data processing terms and standard contractual clauses, and Google's security certifications. Ask us for details.</p>
 
-<h2>Your rights</h2>
-<p>You can access, correct or delete your data, object to processing, and ask for a copy. Most of this you can do in the game; for anything else email [CONTACT EMAIL]. You can also complain to the Nigeria Data Protection Commission (NDPC).</p>
+<h2>6. Children</h2>
+<p>Force Life accounts are for people aged 18 and over. Sign-up checks your age and refuses anyone younger. If we learn that an account belongs to someone under 18, we delete it. Parents or guardians can contact us at [CONTACT EMAIL].</p>
 
-<h2>Security</h2>
-<p>Data is sent over encrypted connections, and database rules stop players from reading other people's private chats, snaps or saves.</p>
+<h2>7. Your rights</h2>
+<p>Under the NDPA you have the right to:</p>
+<ul>
+<li><strong>Access</strong> your data and <strong>take a copy</strong> to use elsewhere: Phone → Profile → <em>Download my data</em>.</li>
+<li><strong>Correct</strong> inaccurate data: email us.</li>
+<li><strong>Erase</strong> your data: Phone → Profile → <em>Delete my account</em> deletes your profile, username, posts and saved progress immediately.</li>
+<li><strong>Withdraw consent</strong> and <strong>object</strong> to processing based on legitimate interest: email us. Withdrawing does not affect processing that already took place.</li>
+<li><strong>Restrict</strong> processing while a complaint is looked into.</li>
+<li><strong>Complain</strong> to the Nigeria Data Protection Commission (ndpc.gov.ng).</li>
+</ul>
+<p>We reply to requests within the time allowed by law (generally 30 days) and do not charge for them.</p>
 
-<h2>Changes</h2>
-<p>If we change this policy we will update the date above and, for important changes, tell you in the game.</p>
+<h2>8. Security and breaches</h2>
+<p>Data travels over encrypted connections. Database security rules stop players from reading other people's private chats, snaps or saved progress, and from changing anyone else's data. If a personal data breach is likely to put your rights at risk, we will notify the NDPC within 72 hours of becoming aware of it, and tell you without undue delay if the risk is high, as the NDPA requires.</p>
+
+<h2>9. Changes</h2>
+<p>When we change this policy we update the version and date above. For important changes we will ask you to accept the new version in the game.</p>
 </main>
 </body>
 </html>

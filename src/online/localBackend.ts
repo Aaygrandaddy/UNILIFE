@@ -113,7 +113,7 @@ export class LocalBackend implements Backend {
     if (Object.values(this.s.profiles).some((p) => p.username === i.username)) throw new Error('That username is taken.');
     const id = uid();
     this.s.accounts[email] = { hash: await hash(i.password), uid: id };
-    const profile: Profile = { uid: id, username: i.username, displayName: i.displayName || i.username, dept: i.dept, level: i.level, skin: i.skin, lastSeen: Date.now() };
+    const profile: Profile & { consent?: { version: string; at: number } } = { uid: id, username: i.username, displayName: i.displayName || i.username, dept: i.dept, level: i.level, skin: i.skin, lastSeen: Date.now(), consent: { version: i.consentVersion, at: Date.now() } };
     this.s.profiles[id] = profile;
     this.setMe(profile);
   }
@@ -246,6 +246,22 @@ export class LocalBackend implements Backend {
     if (!this.me) return;
     this.s.reports.push({ ...r, reporter: this.me.uid, at: Date.now() });
     this.save();
+  }
+
+  async exportData() {
+    const me = this.me;
+    if (!me) return {};
+    const email = Object.keys(this.s.accounts).find((e) => this.s.accounts[e].uid === me.uid);
+    const myChats = Object.entries(this.s.chats).filter(([, c]) => c.members.includes(me.uid));
+    return {
+      exportedAt: new Date().toISOString(),
+      account: { email },
+      profile: this.s.profiles[me.uid],
+      savedProgress: this.s.saves[me.uid] ?? null,
+      posts: this.s.posts.filter((p) => p.uid === me.uid),
+      messagesYouSent: myChats.flatMap(([id]) => (this.s.messages[id] ?? []).filter((m) => m.from === me.uid).map((m) => ({ chat: id, text: m.text, at: new Date(m.at).toISOString() }))),
+      reportsYouFiled: this.s.reports.filter((r) => r.reporter === me.uid),
+    };
   }
 
   async deleteAccount(password: string) {

@@ -8,7 +8,7 @@ service cloud.firestore {
       return request.auth != null;
     }
     function profileShape(d) {
-      return d.keys().hasOnly(['username', 'displayName', 'dept', 'level', 'skin', 'lastSeen', 'blocked'])
+      return d.keys().hasOnly(['username', 'displayName', 'dept', 'level', 'skin', 'lastSeen', 'blocked', 'consent'])
         && (!('blocked' in d) || (d.blocked is list && d.blocked.size() <= 500))
         && d.username is string && d.username.matches('^[a-z0-9_]{3,20}$')
         && d.displayName is string && d.displayName.size() <= 30
@@ -29,7 +29,9 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.auth.uid == uid && profileShape(request.resource.data);
+      // a profile can only be created together with a recorded acceptance of the Terms and Privacy Policy
+      allow create: if signedIn() && request.auth.uid == uid && profileShape(request.resource.data)
+        && request.resource.data.consent.version is string;
       allow update: if signedIn() && request.auth.uid == uid && profileShape(request.resource.data)
         && request.resource.data.username == resource.data.username;
       allow delete: if signedIn() && request.auth.uid == uid;

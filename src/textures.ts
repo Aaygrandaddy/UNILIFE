@@ -305,20 +305,21 @@ export function camo(colors: string[]): THREE.CanvasTexture {
   return t;
 }
 
-export function roundel(): THREE.CanvasTexture {
+/** Fictional Force Life emblem for the training airframes (not a real military marking). */
+export function emblem(): THREE.CanvasTexture {
   const { c, ctx } = makeCanvas(128, 128);
-  ctx.fillStyle = '#008751';
+  ctx.fillStyle = '#1d3f73';
   ctx.beginPath();
   ctx.arc(64, 64, 62, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(64, 64, 40, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#008751';
-  ctx.beginPath();
-  ctx.arc(64, 64, 18, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.strokeStyle = '#e6b422';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  ctx.fillStyle = '#e6b422';
+  ctx.font = '700 52px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('FL', 64, 68);
   return finish(c, false);
 }
 

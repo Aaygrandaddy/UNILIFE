@@ -1,3 +1,8 @@
+// Fonts are bundled with the game (no requests to Google), SIL Open Font License.
+import '@fontsource/oswald/500.css';
+import '@fontsource/oswald/700.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/600.css';
 import './style.css';
 import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';

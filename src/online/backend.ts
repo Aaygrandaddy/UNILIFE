@@ -73,6 +73,11 @@ export interface Snap {
   at: number;
 }
 
+/** Bump when the Terms or Privacy Policy change; stored with each player's consent. */
+export const POLICY_VERSION = '2026-11-15';
+/** Accounts are for adults only (no children's data under the NDPA). */
+export const MIN_AGE = 18;
+
 export interface SignUpInput {
   email: string;
   password: string;
@@ -81,6 +86,8 @@ export interface SignUpInput {
   dept: string;
   level: string;
   skin: number;
+  /** POLICY_VERSION the player accepted, after passing the age check */
+  consentVersion: string;
 }
 
 export type Unsub = () => void;
@@ -110,6 +117,8 @@ export interface Backend {
   report(r: ReportInput): Promise<void>;
   /** Permanently deletes the account, profile, username, posts and save. */
   deleteAccount(password: string): Promise<void>;
+  /** Everything stored about the signed-in player, for access and portability requests. */
+  exportData(): Promise<Record<string, unknown>>;
 }
 
 export const isBlocked = (me: Profile | null, uid: string) => !!me?.blocked?.includes(uid);

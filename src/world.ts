@@ -906,8 +906,8 @@ export class WorldBuilder {
       wheel.position.set(gx, 0.28, gz);
       g.add(wheel);
     }
-    // national roundels and a fictional training code
-    const roundel = new THREE.MeshStandardMaterial({ map: T.roundel(), transparent: true });
+    // fictional institute emblem and training code (no real military markings)
+    const roundel = new THREE.MeshStandardMaterial({ map: T.emblem(), transparent: true });
     for (const sx of [-1, 1]) {
       const r = new THREE.Mesh(new THREE.CircleGeometry(0.5, 24), roundel);
       r.rotation.x = -Math.PI / 2;
