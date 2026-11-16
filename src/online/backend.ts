@@ -129,9 +129,17 @@ export const ONLINE_WINDOW_MS = 75_000;
 export const isOnline = (p: Profile) => !!p.bot || (p.lastSeen ?? 0) > Date.now() - ONLINE_WINDOW_MS;
 export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
-/** Firebase if VITE_FIREBASE_* settings were present at build time, otherwise on-device. */
+/** Supabase or Firebase if their settings were present at build time, otherwise on-device. */
 export async function createBackend(): Promise<Backend> {
   const env = import.meta.env;
+  if (env.VITE_SUPABASE_URL && env.VITE_SUPABASE_KEY && !env.VITE_FIREBASE_EMULATOR) {
+    try {
+      const { SupabaseBackend } = await import('./supabaseBackend');
+      return new SupabaseBackend(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_KEY);
+    } catch (e) {
+      console.warn('Supabase could not start; using on-device mode.', e);
+    }
+  }
   if (env.VITE_FIREBASE_API_KEY && env.VITE_FIREBASE_PROJECT_ID) {
     try {
       const { FirebaseBackend } = await import('./firebaseBackend');

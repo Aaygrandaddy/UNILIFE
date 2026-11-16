@@ -248,6 +248,16 @@ export class Phone {
           else await this.be.signUp({ email: email.value, password: pass.value, username: user.value.trim().toLowerCase(), displayName: disp.value.trim(), dept: dept.value, level: level.value.split(' ')[0], skin, consentVersion: POLICY_VERSION });
         } catch (x) {
           err.textContent = (x as Error).message;
+          err.classList.toggle('is-notice', !!(x as { notice?: boolean }).notice);
+          if ((x as { notice?: boolean }).notice) {
+            mode = 'in';
+            const keepEmail = email.value;
+            draw();
+            (wrap.querySelector('#ph-email') as HTMLInputElement).value = keepEmail;
+            const line = wrap.querySelector('.form-error') as HTMLElement;
+            line.textContent = (x as Error).message;
+            line.classList.add('is-notice');
+          }
         } finally {
           btn.disabled = false;
         }
@@ -302,7 +312,7 @@ export class Phone {
       }
     };
     this.subs.push(this.be.chats((c) => { this.lastChats = c; draw(c); }));
-    this.subs.push(this.be.users(() => draw()));
+    this.subs.push(this.be.users((list) => { list.forEach((u) => this.people.set(u.uid, u)); draw(); }));
     return h('div', { class: 'app' }, this.header('Gist', '#1f8a5b'), tabs, list);
   }
   private lastChats: Parameters<Parameters<Backend['chats']>[0]>[0] = [];

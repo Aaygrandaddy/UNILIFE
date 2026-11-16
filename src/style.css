@@ -1405,3 +1405,10 @@ kbd {
     bottom: auto;
   }
 }
+
+.form-error.is-notice {
+  color: #166534;
+  background: #dcfce7;
+  border-radius: 8px;
+  padding: 8px 10px;
+}

@@ -864,10 +864,29 @@ async function boot() {
     savedAt: Date.now(),
   });
   let lastSave = 0;
+  // Never save until this player's progress has been loaded, or a fresh state would overwrite it.
+  let saveReady = false;
+  // Saves go out one at a time; if more happen meanwhile, one fresh save follows, so the newest state always wins.
+  let saving = false;
+  let saveAgain = false;
   function saveNow() {
-    if (!backend.me) return;
+    if (!backend.me || !saveReady) return;
     lastSave = performance.now();
-    backend.writeSave(snapshot()).catch(() => hud.toast('Could not save your progress. Check your connection.'));
+    if (saving) {
+      saveAgain = true;
+      return;
+    }
+    saving = true;
+    backend
+      .writeSave(snapshot())
+      .catch(() => hud.toast('Could not save your progress. Check your connection.'))
+      .finally(() => {
+        saving = false;
+        if (saveAgain) {
+          saveAgain = false;
+          saveNow();
+        }
+      });
   }
   function applySave(d: SaveData) {
     if (driving) exitVehicle(true);
@@ -882,12 +901,15 @@ async function boot() {
   backend.onAuth(async (p) => {
     if (!p) {
       loadedFor = '';
+      saveReady = false;
       return;
     }
     if (loadedFor === p.uid) return;
     loadedFor = p.uid;
+    saveReady = false;
     try {
       const d = await backend.loadSave();
+      saveReady = true;
       if (d) {
         applySave(d);
         hud.toast(`Welcome back, ${p.displayName}. Progress loaded.`);
@@ -945,7 +967,7 @@ async function boot() {
     const realDt = (now - lastReal) / 1000;
     lastReal = now;
     const dt = Math.min(clock.getDelta(), 0.05);
-    if (backend.me && now - lastSave > 30_000) saveNow();
+    if (backend.me && saveReady && now - lastSave > 30_000) saveNow();
     sound.setPaused(menu.open);
     for (let i = 0; i < (menu.open ? 0 : warp); i++) {
       update(dt);
