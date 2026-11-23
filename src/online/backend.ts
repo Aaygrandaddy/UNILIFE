@@ -26,6 +26,9 @@ export interface SaveData {
   x: number;
   z: number;
   savedAt: number;
+  dailyDay?: number;
+  dailyDone?: number;
+  look?: import('../human').HumanLook;
 }
 
 export interface ReportInput {

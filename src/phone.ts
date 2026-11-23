@@ -2,7 +2,7 @@ import { chatIdOf, isBlocked, isOnline, MIN_AGE, POLICY_VERSION, REPORT_REASONS,
 import { clean } from './online/filter';
 import { TIERS, TOKEN_PRICE_NAIRA, type Place, type Rides, type Tier } from './rides';
 import { naira } from './hud';
-import { SKIN_TONES } from './human';
+import { SKIN_TONES, SHIRTS, TROUSERS, SKIRTS, type HairStyle, type HumanLook } from './human';
 import type * as THREE from 'three';
 
 /** What the phone needs from the game. */
@@ -19,6 +19,9 @@ export interface PhoneGame {
   toast(text: string): void;
   openLegal(page: 'terms' | 'privacy'): void;
   sound(name: 'ping' | 'send' | 'shutter' | 'cash' | 'click'): void;
+  look(): HumanLook;
+  setLook(look: HumanLook): void;
+  event(name: 'yarn'): void;
 }
 
 type Attrs = Record<string, string | number | boolean | ((e: Event) => void) | undefined>;
@@ -52,12 +55,17 @@ const APPS = [
   { id: 'frame', name: 'Frame', blurb: 'Photos', color: '#c2417a', glyph: '▣' },
   { id: 'yarn', name: 'Yarn', blurb: 'Posts', color: '#1b1d22', glyph: '✎' },
   { id: 'waka', name: 'Waka', blurb: 'Rides', color: '#2e7d32', glyph: '➜' },
+  { id: 'style', name: 'Style', blurb: 'Your look', color: '#e4572e', glyph: '👕' },
   { id: 'me', name: 'Profile', blurb: 'Account', color: '#3b82c4', glyph: '☺' },
 ] as const;
 type AppId = (typeof APPS)[number]['id'] | 'home' | 'login' | 'chat';
 
 export class Phone {
   open = false;
+  /** The app currently on screen (for the tutorial). */
+  get currentApp() {
+    return this.app;
+  }
   private root = document.getElementById('phone')!;
   private screen = document.getElementById('phone-screen')!;
   private statusTime = document.getElementById('phone-time')!;
@@ -169,6 +177,8 @@ export class Phone {
           return this.waka();
         case 'me':
           return this.profile();
+        case 'style':
+          return this.style();
       }
     })();
     this.screen.append(view);
@@ -434,7 +444,8 @@ export class Phone {
       if (isFrame && !pending) return this.game.toast('Take a photo first.');
       if (!isFrame && !text.value.trim()) return;
       post.disabled = true;
-      await this.be.post(kind, clean(text.value.trim()), pending).catch((x) => this.game.toast((x as Error).message));
+      const ok = await this.be.post(kind, clean(text.value.trim()), pending).then(() => true, (x) => (this.game.toast((x as Error).message), false));
+      if (ok && kind === 'yarn') this.game.event('yarn');
       post.disabled = false;
       text.value = '';
       pending = undefined;
@@ -516,6 +527,40 @@ export class Phone {
     return h('div', { class: 'app' }, head,
       h('div', { class: 'form' }, h('label', { for: 'ph-dest' }, 'Where to?'), sel, h('span', { class: 'label' }, 'Choose a ride'), cards, err, book,
         h('span', { class: 'label' }, `Buy tokens · 1 token = ${naira(TOKEN_PRICE_NAIRA)}`), h('div', { class: 'buy-row' }, buy(10), buy(30), buy(60))));
+  }
+
+  // ---------- Style: character creator ----------
+  private style() {
+    const look = this.game.look();
+    const set = (patch: Partial<HumanLook>) => {
+      this.game.setLook({ ...this.game.look(), ...patch });
+      this.render();
+    };
+    const swatches = (label: string, colors: string[], current: string, key: keyof HumanLook, extra?: Node) =>
+      h('div', { class: 'style-row' }, h('span', { class: 'label' }, label),
+        h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': label },
+          ...colors.map((c) => h('button', { type: 'button', class: 'swatch' + (c === current ? ' is-on' : ''), style: `background:${c}`, role: 'radio', 'aria-checked': String(c === current), 'aria-label': `${label} ${c}`, onclick: () => set({ [key]: c } as Partial<HumanLook>) })),
+          extra ?? null));
+    const chips = <T extends string>(label: string, options: [T, string][], current: T, onPick: (v: T) => void) =>
+      h('div', { class: 'style-row' }, h('span', { class: 'label' }, label),
+        h('div', { class: 'chips', role: 'radiogroup', 'aria-label': label },
+          ...options.map(([v, name]) => h('button', { type: 'button', class: 'chip' + (v === current ? ' is-on' : ''), role: 'radio', 'aria-checked': String(v === current), onclick: () => onPick(v) }, name))));
+    const outfit = look.outfit === 'kaftan' ? 'kaftan' : look.female ? 'skirt' : 'trousers';
+    const hairStyles: [HairStyle, string][] = [['low', 'Low cut'], ['fade', 'Fade'], ['afro', 'Afro'], ['braids', 'Braids'], ['bun', 'Bun'], ['cap', 'Face cap']];
+    return h('div', { class: 'app' }, this.header('Style', '#e4572e'),
+      h('p', { class: 'mode-note' }, 'Changes show on your character straight away and save with your progress.'),
+      swatches('Skin tone', SKIN_TONES, look.skin, 'skin'),
+      chips('Hair', hairStyles, look.hairStyle ?? (look.female ? 'braids' : 'low'), (v) => set({ hairStyle: v })),
+      swatches('Hair colour', ['#120d0a', '#3b2416', '#6b3e26', '#b07a3a', '#c9b48a'], look.hair, 'hair'),
+      chips('Outfit', [['trousers', 'Shirt & trousers'], ['skirt', 'Shirt & skirt'], ['kaftan', 'Kaftan']], outfit, (v) =>
+        set(v === 'kaftan' ? { outfit: 'kaftan', female: false } : { outfit: 'civil', female: v === 'skirt', bottom: v === 'skirt' ? SKIRTS[0] : TROUSERS[0] })),
+      swatches('Top', SHIRTS, look.pattern === 'ankara' ? '' : look.shirt, 'shirt',
+        h('button', { type: 'button', class: 'swatch ankara' + (look.pattern === 'ankara' ? ' is-on' : ''), 'aria-label': 'Ankara print', onclick: () => set({ pattern: look.pattern === 'ankara' ? 'plain' : 'ankara' }) })),
+      outfit !== 'kaftan' ? swatches(outfit === 'skirt' ? 'Skirt' : 'Trousers', outfit === 'skirt' ? SKIRTS : TROUSERS, look.bottom, 'bottom') : null,
+      chips('Extras', [['none', 'None'], ['glasses', 'Glasses']], look.glasses ? 'glasses' : 'none', (v) => set({ glasses: v === 'glasses' })),
+      swatches('Backpack', ['#123f6b', '#1b1b1b', '#7b1f1f', '#2e7d32', '#5d4037'], look.backpack ?? '', 'backpack',
+        h('button', { type: 'button', class: 'chip' + (!look.backpack ? ' is-on' : ''), onclick: () => set({ backpack: undefined }) }, 'None')),
+    );
   }
 
   // ---------- profile ----------

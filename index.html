@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0b1118" />
     <meta name="color-scheme" content="dark" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="./icons/icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Force Life" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Force Life</title>
     <meta
       name="description"
@@ -49,6 +56,7 @@
         <small>Objective</small>
         <strong id="mission-title"></strong>
         <p id="mission-text"></p>
+        <ul id="daily" class="daily" aria-label="Today's daily tasks" hidden></ul>
       </section>
 
       <div class="radar">
@@ -62,6 +70,11 @@
       <div id="speedo" class="speedo" hidden><span id="speed-value">0</span><small>km/h</small></div>
 
       <div id="fade" class="fade" aria-hidden="true"></div>
+      <section id="coach" class="coach" aria-live="polite" aria-label="How to play" hidden>
+        <small><span>How to play</span> <span id="coach-step"></span></small>
+        <p id="coach-text"></p>
+        <button type="button" id="coach-skip">Skip</button>
+      </section>
 
       <button type="button" id="phone-button" class="phone-button" aria-label="Open phone (P)">
         <span aria-hidden="true">📱</span><i id="phone-badge" class="badge" hidden>0</i>
@@ -88,6 +101,7 @@
             <button type="button" data-tab="settings">Settings</button>
             <button type="button" data-tab="terms">Terms</button>
             <button type="button" data-tab="privacy">Privacy</button>
+            <button type="button" data-tab="install" id="install-tab">Install app</button>
             <button type="button" data-tab="about">About &amp; licences</button>
           </nav>
           <div id="menu-body" class="menu-body"></div>

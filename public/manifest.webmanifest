@@ -1,0 +1,17 @@
+{
+  "name": "Force Life",
+  "short_name": "Force Life",
+  "description": "Open-world campus life game: drive, chat, ride Waka and beat curfew.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0b1118",
+  "theme_color": "#1d3f73",
+  "categories": ["games", "social"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-export type Outfit = 'civil' | 'airman' | 'lecturer' | 'staff';
+export type Outfit = 'civil' | 'airman' | 'lecturer' | 'staff' | 'kaftan';
+export type HairStyle = 'low' | 'fade' | 'afro' | 'braids' | 'bun' | 'cap';
 
 export interface HumanLook {
   skin: string;
@@ -12,7 +13,13 @@ export interface HumanLook {
   backpack?: string;
   shoes?: string;
   outfit?: Outfit;
+  hairStyle?: HairStyle;
+  glasses?: boolean;
+  /** 'ankara' paints the top in a bright wax-print pattern */
+  pattern?: 'plain' | 'ankara';
 }
+
+const ANKARA = ['#e4572e', '#17bebb', '#ffc914', '#76b041', '#7b2d8b', '#2e294e'];
 
 const CAMO = ['#5b7392', '#3f5672', '#8197b3', '#2d3d55'];
 const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
@@ -71,7 +78,7 @@ export class Human {
   constructor(public look: HumanLook, shadows = true) {
     const outfit = look.outfit ?? 'civil';
     const skin = look.skin;
-    const top: Paint = outfit === 'airman' ? CAMO : look.shirt;
+    const top: Paint = outfit === 'airman' ? CAMO : look.pattern === 'ankara' ? ANKARA : look.shirt;
     const bottom: Paint = outfit === 'airman' ? CAMO : look.bottom;
     const shoe = outfit === 'airman' ? '#0d0d0d' : look.shoes ?? '#151515';
     const female = !!look.female;
@@ -97,7 +104,7 @@ export class Human {
       paint(new THREE.CylinderGeometry(0.21, 0.17, 0.52, 12).scale(1, 1, 0.62).translate(0, 0.27, 0), top),
       paint(new THREE.CapsuleGeometry(0.08, 0.3, 3, 8).rotateZ(Math.PI / 2).translate(0, 0.5, 0), top),
     ];
-    if (outfit === 'lecturer') body.push(paint(new THREE.CylinderGeometry(0.22, 0.34, 1.05, 12).translate(0, -0.45, 0), top));
+    if (outfit === 'lecturer' || outfit === 'kaftan') body.push(paint(new THREE.CylinderGeometry(0.22, 0.34, 1.05, 12).translate(0, -0.45, 0), top));
     else if (female && outfit === 'civil') body.push(paint(new THREE.CylinderGeometry(0.2, 0.3, 0.75, 12).translate(0, -0.32, 0), bottom));
     if (outfit === 'staff') body.push(paint(new THREE.BoxGeometry(0.34, 0.75, 0.02).translate(0, 0, -0.14), '#f5f5f5'));
     if (outfit === 'airman') body.push(paint(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 12).scale(1, 1, 0.65).translate(0, 0.02, 0), '#1a1a1a'));
@@ -129,11 +136,35 @@ export class Human {
       head.push(paint(new THREE.CylinderGeometry(0.11, 0.115, 0.1, 12).translate(0, 0.29, 0), look.bottom));
     } else if (outfit === 'staff') {
       head.push(paint(new THREE.SphereGeometry(0.125, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55).translate(0, 0.19, 0), '#e8e8e8'));
-    } else if (female) {
-      head.push(paint(new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.6).translate(0, 0.19, 0), look.hair));
-      head.push(paint(new THREE.CylinderGeometry(0.1, 0.06, 0.28, 10).scale(1, 1, 0.6).translate(0, 0.06, 0.08), look.hair));
     } else {
-      head.push(paint(new THREE.SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.4).translate(0, 0.19, 0), look.hair));
+      const style = look.hairStyle ?? (female ? 'braids' : 'low');
+      const cap = (th: number, r = 0.12) => new THREE.SphereGeometry(r, 12, 8, 0, Math.PI * 2, 0, Math.PI * th).translate(0, 0.19, 0);
+      switch (style) {
+        case 'fade':
+          head.push(paint(cap(0.3, 0.118), look.hair));
+          break;
+        case 'afro':
+          head.push(paint(new THREE.SphereGeometry(0.17, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62).scale(1.05, 0.95, 1.05).translate(0, 0.2, 0.01), look.hair));
+          break;
+        case 'braids':
+          head.push(paint(cap(0.6, 0.135), look.hair));
+          head.push(paint(new THREE.CylinderGeometry(0.1, 0.06, 0.28, 10).scale(1, 1, 0.6).translate(0, 0.06, 0.08), look.hair));
+          break;
+        case 'bun':
+          head.push(paint(cap(0.55, 0.13), look.hair));
+          head.push(paint(new THREE.SphereGeometry(0.075, 10, 8).translate(0, 0.31, 0.06), look.hair));
+          break;
+        case 'cap':
+          head.push(paint(new THREE.SphereGeometry(0.128, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5).translate(0, 0.2, 0), '#1d3f73'));
+          head.push(paint(new THREE.BoxGeometry(0.2, 0.015, 0.12).translate(0, 0.205, -0.15), '#1d3f73'));
+          break;
+        default:
+          head.push(paint(cap(0.4), look.hair));
+      }
+    }
+    if (look.glasses) {
+      for (const x of [-0.045, 0.045]) head.push(paint(new THREE.BoxGeometry(0.06, 0.04, 0.01).translate(x, 0.19, -0.118), '#111111'));
+      head.push(paint(new THREE.BoxGeometry(0.03, 0.008, 0.01).translate(0, 0.195, -0.118), '#111111'));
     }
     this.head.add(meshOf(head, shadows));
   }

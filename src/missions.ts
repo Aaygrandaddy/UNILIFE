@@ -4,9 +4,13 @@ export interface Step {
   text: string;
   /** POI ids. Any one of them completes the step. */
   targets: string[];
-  /** Completed by an E-interaction instead of by arriving. */
-  interaction?: 'atm' | 'food';
-  /** Game minutes since midnight on Day 1. */
+  /** Completed by an E-interaction instead of by arriving. 'shop' pays `cost` at the target. */
+  interaction?: 'atm' | 'food' | 'shop';
+  /** Naira paid when a 'shop' step is completed. */
+  cost?: number;
+  /** Game day (0 = Day 1) on which this story step becomes available. */
+  day?: number;
+  /** Absolute game minutes since midnight on Day 1. */
   deadline?: number;
   lateText?: string;
   lateFine?: number;
@@ -19,6 +23,8 @@ export interface Step {
 }
 
 const h = (hour: number, min = 0) => hour * 60 + min;
+/** Absolute game minutes for a time on a given day (0 = Day 1). */
+const d = (day: number, hour: number, min = 0) => day * 1440 + h(hour, min);
 
 export const DAY_ONE: Step[] = [
   {
@@ -93,13 +99,69 @@ export const DAY_ONE: Step[] = [
   },
 ];
 
+/** The rest of the first week: one or two story goals a day, unlocked each morning. */
+export const WEEK_ONE: Step[] = [
+  { id: 'matric-photo', day: 1, title: 'Matric Photo', text: 'Take your matriculation photo at the Registry & Bursary.', targets: ['admin'], doneText: 'Photo taken. You blinked, but it will do.' },
+  { id: 'textbook', day: 1, title: 'Textbooks', text: 'Buy your GST 111 textbook at Mammy Market (₦3,500). Press E at the shops.', targets: ['market'], interaction: 'shop', cost: 3500, doneText: 'Textbook bought. The cover says "Use of English".' },
+  { id: 'workshop', day: 2, title: 'Workshop Practical', text: 'Be at the Faculty of Air Engineering for your workshop practical before 11:00 AM.', targets: ['airEng'], deadline: d(2, 11), lateText: 'You missed the safety briefing. The technician was not impressed.', doneText: 'Practical done. You can now name every part of a jet engine. Almost.' },
+  { id: 'hangar-tour', day: 2, title: 'Hangar Tour', text: 'Your class is touring Hangar 1. Meet them on the apron.', targets: ['hangar'], doneText: 'You sat in a real training jet cockpit.', reward: 1500 },
+  { id: 'trials', day: 3, title: 'Football Trials', text: 'Hostel football trials at the Sports Complex. Get there before 4:30 PM.', targets: ['stadium'], deadline: d(3, 16, 30), lateText: 'Trials were over by the time you arrived.', doneText: 'You made the Hostel B team!', reward: 3000 },
+  { id: 'dept-meeting', day: 4, title: 'Freshers’ Meeting', text: 'Departmental freshers’ meeting in the Multipurpose Hall before 2:00 PM.', targets: ['hall'], deadline: d(4, 14), lateText: 'You walked in during the closing prayer.', doneText: 'You met your course adviser and the class rep.' },
+  { id: 'dues', day: 4, title: 'Departmental Dues', text: 'Pay your ₦2,000 departmental dues at the Registry & Bursary. Press E there.', targets: ['admin'], interaction: 'shop', cost: 2000, doneText: 'Dues paid. Keep the receipt.' },
+  { id: 'market-day', day: 5, title: 'Market Day', text: 'Saturday! Buy suya at Mammy Market for Tunde (₦1,500). Press E at the shops.', targets: ['market'], interaction: 'shop', cost: 1500, doneText: 'Tunde says you are now his favourite roommate.' },
+  { id: 'worship', day: 5, title: 'Worship', text: 'Attend service at the Base Chapel or prayers at the Base Central Mosque.', targets: ['chapel', 'mosque'], doneText: 'A quiet moment before a new week.' },
+  { id: 'week-done', day: 6, title: 'Week One Complete', text: 'Go back to Hostel B and rest. Your first week is done!', targets: ['hostelB'], doneText: 'Week One complete! Keep doing daily tasks to earn money.', reward: 10000 },
+];
+
+export const STORY: Step[] = [...DAY_ONE, ...WEEK_ONE];
+
+// ---------- daily tasks: three a day from Day 2, a reason to come back ----------
+export type DailyKind = 'visit' | 'atm' | 'food' | 'retreat' | 'yarn' | 'waka';
+export interface DailyTask {
+  key: string;
+  kind: DailyKind;
+  text: string;
+  targets?: string[];
+  reward: number;
+}
+const DAILY_POOL: DailyTask[] = [
+  { key: 'library', kind: 'visit', text: 'Read at the Force Life Library', targets: ['library'], reward: 600 },
+  { key: 'lecture', kind: 'visit', text: 'Attend a lecture at LT1', targets: ['theatre'], reward: 800 },
+  { key: 'stadium', kind: 'visit', text: 'Run laps at the Sports Complex', targets: ['stadium'], reward: 500 },
+  { key: 'hangar', kind: 'visit', text: 'Help out at Hangar 1', targets: ['hangar'], reward: 700 },
+  { key: 'worship', kind: 'visit', text: 'Visit the Chapel or the Mosque', targets: ['chapel', 'mosque'], reward: 400 },
+  { key: 'clinic', kind: 'visit', text: 'Collect a form at the Medical Centre', targets: ['medical'], reward: 500 },
+  { key: 'eat', kind: 'food', text: 'Eat at the Cafeteria', reward: 400 },
+  { key: 'atm', kind: 'atm', text: 'Withdraw cash at the ATM Gallery', reward: 200 },
+  { key: 'retreat', kind: 'retreat', text: 'Stand for Retreat at the Parade Ground', reward: 1000 },
+  { key: 'yarn', kind: 'yarn', text: 'Post on Yarn', reward: 300 },
+  { key: 'waka', kind: 'waka', text: 'Take a Waka ride', reward: 600 },
+];
+
+/** The same three tasks for everyone on a given day. */
+export function dailyTasks(day: number): DailyTask[] {
+  if (day < 1) return [];
+  let seed = day * 9301 + 49297;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const pool = [...DAILY_POOL];
+  const out: DailyTask[] = [];
+  while (out.length < 3) out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+  return out;
+}
+
 export class Missions {
   idx = 0;
   late = false;
-  constructor(public steps: Step[] = DAY_ONE) {}
+  constructor(public steps: Step[] = STORY) {}
 
   get current(): Step | null {
     return this.steps[this.idx] ?? null;
+  }
+
+  /** The current story step, or null if it unlocks on a later day. */
+  available(day: number): Step | null {
+    const s = this.current;
+    return s && (s.day ?? 0) <= day ? s : null;
   }
 
   advance() {

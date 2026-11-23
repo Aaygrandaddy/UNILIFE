@@ -198,6 +198,27 @@ export class Hud {
     this.set('mx', this.missionText, text);
   }
 
+  /** Today's daily tasks under the objective, ticked when done. */
+  setDaily(tasks: { text: string; reward: number; done: boolean }[]) {
+    const el = document.getElementById('daily')!;
+    const key = JSON.stringify(tasks);
+    if (this.last.daily === key) return;
+    this.last.daily = key;
+    el.hidden = tasks.length === 0;
+    el.replaceChildren(
+      Object.assign(document.createElement('li'), { className: 'daily-head', textContent: 'Daily tasks' }),
+      ...tasks.map((t) => {
+        const li = document.createElement('li');
+        li.className = t.done ? 'is-done' : '';
+        li.textContent = `${t.done ? '✓' : '○'} ${t.text}`;
+        const r = document.createElement('span');
+        r.textContent = naira(t.reward);
+        li.append(r);
+        return li;
+      }),
+    );
+  }
+
   setPrompt(text: string) {
     this.prompt.hidden = !text;
     this.set('prompt', this.prompt, text);

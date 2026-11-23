@@ -10,12 +10,12 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { BUILDINGS, FENCE, GATE, HANGAR, PARADE, PARKED, ROADS, ROUTES, SPAWN, STADIUM, UNI } from './config';
 import { INTERIOR_POI_BUILDING, Interiors, type Interior } from './interiors';
 import { WorldBuilder, roadAt, type AABB } from './world';
-import { Human } from './human';
+import { Human, type HumanLook } from './human';
 import { Vehicle, laneRoute } from './vehicles';
 import { Crowd } from './npcs';
 import { Input } from './input';
 import { Hud, naira, toBlip, type Blip } from './hud';
-import { Missions } from './missions';
+import { Missions, dailyTasks, type DailyKind } from './missions';
 import { angleDiff, clamp, pointInBoxes, resolveCircle, separate } from './physics';
 import { createBackend } from './online/backend';
 import { Rides, TOKEN_PRICE_NAIRA, type Place } from './rides';
@@ -23,6 +23,7 @@ import { Phone } from './phone';
 import { clockText } from './hud';
 import { Menu, type Settings } from './menu';
 import { Sound } from './sfx';
+import { Tutorial } from './tutorial';
 import type { SaveData } from './online/backend';
 
 declare const __APP_VERSION__: string;
@@ -128,7 +129,33 @@ async function boot() {
   // ---------- people and vehicles ----------
   let crowd!: Crowd;
   const vehicles: Vehicle[] = [];
-  const player = new Human({ skin: '#5a3825', shirt: '#ffffff', bottom: '#1b1b1f', hair: '#120d0a', backpack: '#123f6b', shoes: '#151515' });
+  const DEFAULT_LOOK: HumanLook = { skin: '#5a3825', shirt: '#ffffff', bottom: '#1b1b1f', hair: '#120d0a', backpack: '#123f6b', shoes: '#151515', hairStyle: 'low' };
+  let playerLook: HumanLook = DEFAULT_LOOK;
+  try {
+    const saved = localStorage.getItem('forcelife.look.v1');
+    if (saved) playerLook = { ...DEFAULT_LOOK, ...JSON.parse(saved) };
+  } catch {
+    // no saved look on this device
+  }
+  let player = new Human(playerLook);
+  /** Rebuild the player model with a new look, in place. */
+  function setPlayerLook(look: HumanLook) {
+    playerLook = look;
+    const old = player;
+    player = new Human(look);
+    player.group.position.copy(old.group.position);
+    player.group.rotation.copy(old.group.rotation);
+    player.group.visible = old.group.visible;
+    if (old.group.parent) {
+      old.group.parent.add(player.group);
+      old.group.parent.remove(old.group);
+    }
+    try {
+      localStorage.setItem('forcelife.look.v1', JSON.stringify(look));
+    } catch {
+      // look still applies this session
+    }
+  }
   let interiors!: Interiors;
   await step(80, 'Furnishing hostels and lecture theatres…', () => {
     interiors = new Interiors(scene, colliders, pois);
@@ -202,10 +229,15 @@ async function boot() {
     curfew: 0,
     atmDay: -1,
     tokens: 20,
+    dailyDay: 0,
+    dailyDone: 0,
   };
   const absMinutes = () => state.day * 1440 + state.minutes;
   let driving: Vehicle | null = null;
   let cineCam: { p: THREE.Vector3; t: THREE.Vector3 } | null = null; // debug filming camera
+  let tutorialMoved = 0;
+  let lookDXFrame = 0;
+  let lookDYFrame = 0;
   let showMarkers = true; // debug filming can hide objective beams
   let engineInput: Parameters<Sound['engineUpdate']>[0] = null;
   let stepDist = 0;
@@ -266,10 +298,18 @@ async function boot() {
       toast: (t) => hud.toast(t, 3600),
       openLegal: (page) => menu.toggle(true, page),
       sound: (name) => sound[name](),
+      look: () => playerLook,
+      setLook: (l) => {
+        setPlayerLook(l);
+        saveNow();
+      },
+      event: (name) => dailyEvent(name),
     },
     rides,
   );
   $('phone-button').addEventListener('click', () => phone.toggle());
+  const tutorial = new Tutorial(() => hud.toast('You’re ready. Welcome to Force Life!', 3500));
+  let tutorialStarted = false;
 
   const hallPoi = () => pois[UNI.playerHall];
 
@@ -416,18 +456,66 @@ async function boot() {
     }
     hud.showBanner(late ? 'OBJECTIVE COMPLETE · LATE' : 'OBJECTIVE COMPLETE', text);
     sound.objective();
-    if (m.advanceTo !== undefined && state.day === 0 && state.minutes < m.advanceTo) {
+    if (m.advanceTo !== undefined && state.day === (m.day ?? 0) && state.minutes < m.advanceTo) {
       state.minutes = m.advanceTo;
     }
     missions.advance();
     queueMicrotask(() => saveNow());
     const next = missions.current;
-    if (next) setTimeout(() => hud.toast(`New objective: ${next.title}`), 2500);
+    if (next && (next.day ?? 0) <= state.day) setTimeout(() => hud.toast(`New objective: ${next.title}`), 2500);
+    else if (next) setTimeout(() => hud.toast('That’s today’s story done. Your next story goal unlocks tomorrow morning. Daily tasks pay too!', 4500), 2500);
+  }
+
+  // ---------- daily tasks ----------
+  function syncDaily() {
+    if (state.dailyDay !== state.day) {
+      state.dailyDay = state.day;
+      state.dailyDone = 0;
+    }
+  }
+  /** Mark today's tasks of this kind as done (for 'visit', only those whose targets include `poi`). */
+  function dailyEvent(kind: DailyKind, poi?: string) {
+    syncDaily();
+    dailyTasks(state.day).forEach((t, i) => {
+      if (state.dailyDone & (1 << i) || t.kind !== kind) return;
+      if (kind === 'visit' && !(poi && t.targets?.includes(poi))) return;
+      state.dailyDone |= 1 << i;
+      state.money += t.reward;
+      sound.cash();
+      hud.toast(`Daily task done: ${t.text} +${naira(t.reward)}`, 3800);
+      queueMicrotask(() => saveNow());
+    });
+  }
+
+  /** Sleep in your bunk until 7:00 AM the next morning. */
+  function sleep() {
+    transition(() => {
+      if (state.minutes >= 7 * 60) state.day++;
+      state.minutes = 7 * 60;
+      state.energy = 100;
+      state.curfew = 0;
+      hud.showBanner('GOOD MORNING', `Day ${state.day + 1}. You slept well and feel rested.`);
+      saveNow();
+    });
   }
 
   function interact() {
     const p = player.group.position;
-    const m = missions.current;
+    const m = missions.available(state.day);
+    if (m?.interaction === 'shop' && m.targets.some((id) => pois[id] && pois[id].distanceTo(p) < 6)) {
+      const cost = m.cost ?? 0;
+      if (state.money < cost) hud.toast(`You need ${naira(cost)}. Visit the ATM Gallery first.`);
+      else {
+        state.money -= cost;
+        sound.cash();
+        completeStep();
+      }
+      return true;
+    }
+    if (indoors?.building === UNI.playerHall && pois['room-bed'] && p.distanceTo(pois['room-bed']) < 2 && m?.id !== 'move-in') {
+      sleep();
+      return true;
+    }
     if (indoors && p.distanceTo(indoors.exit) < 1.6) {
       leaveInterior();
       return true;
@@ -440,6 +528,7 @@ async function boot() {
         state.money += 10000;
         sound.cash();
         hud.toast(`Withdrew ${naira(10000)}. Network was fast for once.`);
+        dailyEvent('atm');
       }
       if (m?.interaction === 'atm') completeStep();
       return true;
@@ -451,6 +540,7 @@ async function boot() {
         sound.cash();
         state.energy = Math.min(100, state.energy + 45);
         hud.toast(`Jollof rice and plantain: −${naira(1500)}`);
+        dailyEvent('food');
         if (m?.interaction === 'food') completeStep();
       }
       return true;
@@ -481,6 +571,8 @@ async function boot() {
     if (input.tap('KeyH')) helpEl.hidden = !helpEl.hidden;
 
     // camera look
+    lookDXFrame = input.lookDX;
+    lookDYFrame = input.lookDY;
     const sens = menu.settings.sensitivity;
     camYaw -= input.lookDX * 0.0042 * sens;
     camPitch = clamp(camPitch + input.lookDY * 0.003 * sens * (menu.settings.invertY ? -1 : 1), -0.05, 1.15);
@@ -518,6 +610,7 @@ async function boot() {
     const p = player.group.position;
     const drop = rides.update(dt);
     if (drop) {
+      dailyEvent('waka');
       p.copy(drop);
       resolveCircle(p, 0.35, colliders);
       player.group.visible = true;
@@ -566,6 +659,7 @@ async function boot() {
           camYaw += angleDiff(camYaw, playerYaw) * (1 - Math.exp(-rate * dt));
         }
       } else playerSpeed = 0;
+      tutorialMoved = playerSpeed * dt;
       if (playerSpeed < 3 && state.energy < 60) state.energy += 0.8 * dt;
       resolveCircle(p, 0.35, colliders);
       for (const v of vehicles) separate(p, 0.35, v.pos, v.spec.radius * 0.85);
@@ -614,7 +708,10 @@ async function boot() {
     if (rides.canBoard(p)) prompt = 'Press F to get in your Waka ride';
     else if (rides.riding) prompt = '';
     else if (!driving) {
-      if (pois.atm && p.distanceTo(pois.atm) < 3.2) prompt = `Press E to withdraw ${naira(10000)}`;
+      const sm = missions.available(state.day);
+      if (sm?.interaction === 'shop' && sm.targets.some((id) => pois[id] && pois[id].distanceTo(p) < 6)) prompt = `Press E to pay ${naira(sm.cost ?? 0)}: ${sm.title}`;
+      else if (indoors?.building === UNI.playerHall && pois['room-bed'] && p.distanceTo(pois['room-bed']) < 2 && sm?.id !== 'move-in') prompt = 'Press E to sleep until 7:00 AM';
+      else if (pois.atm && p.distanceTo(pois.atm) < 3.2) prompt = `Press E to withdraw ${naira(10000)}`;
       else if (indoors?.building === 'cafeteria' && p.distanceTo(pois['caf-counter']) < 2.2) prompt = `Press E to buy jollof rice (${naira(1500)})`;
       else if (indoors && p.distanceTo(indoors.exit) < 1.6) prompt = 'Press E to go outside';
       else if (doorHere()) prompt = `Press E to enter ${doorHere()!.name}`;
@@ -629,7 +726,8 @@ async function boot() {
     } else if (Math.abs(driving.speed) < 1) prompt = 'Press F to get out';
 
     // missions
-    const m = missions.current;
+    syncDaily();
+    const m = missions.available(state.day);
     const blips: Blip[] = [
       toBlip(pois.atm, '#22c55e', '₦'),
       toBlip(pois.cafeteria, '#fb923c', 'C'),
@@ -675,9 +773,18 @@ async function boot() {
         if (driving) prompt = prompt || 'Get out of the vehicle (F) to continue';
         else completeStep();
       }
-      const cur = missions.current;
+      const cur = missions.available(state.day);
       hud.setMission(cur ? cur.title : null, cur ? cur.text : '');
-    } else hud.setMission(null, '');
+    } else if (missions.current) hud.setMission('Story continues tomorrow', 'Do today’s daily tasks, explore, or sleep in your bunk at Hostel B to skip to morning.');
+    else hud.setMission('Free roam', 'Your first week is done. Complete daily tasks to earn money.');
+    // daily tasks: visits complete on arrival (on foot); list them under the objective
+    const today = dailyTasks(state.day);
+    today.forEach((t, i) => {
+      if (state.dailyDone & (1 << i) || t.kind !== 'visit' || driving) return;
+      for (const id of t.targets ?? []) if (pois[id] && pois[id].distanceTo(p) < 6) dailyEvent('visit', id);
+      if (indoors && t.targets?.includes(indoors.building)) dailyEvent('visit', indoors.building);
+    });
+    hud.setDaily(today.map((t, i) => ({ text: t.text, reward: t.reward, done: !!(state.dailyDone & (1 << i)) })));
 
     // campus marshals
     const kmh = driving ? Math.abs(driving.speed) * 3.6 : 0;
@@ -706,7 +813,8 @@ async function boot() {
     } else if (!nowRetreat && retreatActive) {
       retreatActive = false;
       crowd.halted = false;
-      const cur = missions.current;
+      if (p.distanceTo(pois.parade) < 45 && !retreatOffended) dailyEvent('retreat');
+      const cur = missions.available(state.day);
       if (cur?.waitFor === 'retreat') {
         const there = p.distanceTo(pois.parade) < 45;
         if (!there) missions.late = true;
@@ -739,6 +847,19 @@ async function boot() {
 
     // HUD
     hud.status(state.minutes, state.day, state.money, state.alert, state.energy);
+    // first-time tutorial starts once the sign-in phone is out of the way
+    if (!tutorialStarted && !phone.open && !menu.open) {
+      tutorialStarted = true;
+      tutorial.start();
+    }
+    tutorial.update(dt, {
+      moved: tutorialMoved,
+      looked: Math.abs(lookDXFrame) + Math.abs(lookDYFrame),
+      running: playerSpeed > 5,
+      phoneOpen: phone.open,
+      phoneApp: phone.currentApp,
+    });
+    tutorialMoved = 0;
     hud.setLocation(locate(p.x, p.z));
     hud.setPrompt(prompt);
     hud.setSpeed(driving ? kmh : rides.riding && rides.vehicle ? Math.abs(rides.vehicle.speed) * 3.6 : null);
@@ -857,6 +978,15 @@ async function boot() {
     $('fps').hidden = !showFps;
   }
   menu.onSettings = applySettings;
+
+  // ---------- install as an app ----------
+  addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    menu.installPrompt = e as Event as NonNullable<typeof menu.installPrompt>;
+  });
+  if (import.meta.env.PROD && 'serviceWorker' in navigator && !new URLSearchParams(location.search).has('debug')) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
   applySettings(menu.settings);
 
   // ---------- saving progress to the player's account ----------
@@ -872,6 +1002,9 @@ async function boot() {
     x: indoors ? pois[indoors.building].x : rides.riding && rides.vehicle ? rides.vehicle.pos.x : player.group.position.x,
     z: indoors ? pois[indoors.building].z : rides.riding && rides.vehicle ? rides.vehicle.pos.z : player.group.position.z,
     savedAt: Date.now(),
+    dailyDay: state.dailyDay,
+    dailyDone: state.dailyDone,
+    look: playerLook,
   });
   let lastSave = 0;
   // Never save until this player's progress has been loaded, or a fresh state would overwrite it.
@@ -903,6 +1036,9 @@ async function boot() {
     if (indoors) leaveInterior();
     Object.assign(state, { money: d.money, tokens: d.tokens, energy: d.energy, minutes: d.minutes, day: d.day, atmDay: d.atmDay });
     missions.idx = Math.min(d.mission, missions.steps.length);
+    state.dailyDay = d.dailyDay ?? state.day;
+    state.dailyDone = d.dailyDone ?? 0;
+    if (d.look) setPlayerLook(d.look);
     missions.late = false;
     player.group.position.set(d.x, 0, d.z);
     resolveCircle(player.group.position, 0.35, colliders);
@@ -974,6 +1110,12 @@ async function boot() {
         },
         timeScale: (n: number) => (timeScaleOverride = n),
         markers: (on: boolean) => (showMarkers = on),
+        setMission: (i: number) => {
+          missions.idx = i;
+          missions.late = false;
+        },
+        missionTitle: () => document.getElementById('mission-title')?.textContent ?? '',
+        getLook: () => playerLook,
         hudMode: (mode: 'full' | 'play' | 'clean') => {
           document.body.dataset.film = mode;
         },

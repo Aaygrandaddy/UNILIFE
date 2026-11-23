@@ -35,7 +35,9 @@ function saveSettings(s: Settings) {
   }
 }
 
-type Tab = 'resume' | 'help' | 'settings' | 'terms' | 'privacy' | 'about';
+type Tab = 'resume' | 'help' | 'settings' | 'terms' | 'privacy' | 'about' | 'install';
+
+type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
 export class Menu {
   open = false;
@@ -79,6 +81,7 @@ export class Menu {
     else if (tab === 'settings') this.settingsView();
     else if (tab === 'terms' || tab === 'privacy') this.legal(tab);
     else if (tab === 'about') this.about();
+    else if (tab === 'install') this.install();
   }
 
   private help() {
@@ -146,6 +149,36 @@ export class Menu {
     });
     f.addEventListener('submit', (e) => e.preventDefault());
     this.body.append(f);
+  }
+
+  /** Saved by main.ts when the browser offers to install the game. */
+  installPrompt: InstallPrompt | null = null;
+
+  private install() {
+    const installed = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    this.body.innerHTML = `<h2>Install Force Life</h2>`;
+    const p = document.createElement('p');
+    if (installed) p.textContent = 'Force Life is already installed on this device. Open it from your home screen.';
+    else if (this.installPrompt) p.textContent = 'Add Force Life to your home screen. It opens full screen like an app, loads faster, and starts even without a connection (online features need internet).';
+    else if (ios) p.textContent = 'On iPhone or iPad: open this page in Safari, tap the Share button, then “Add to Home Screen”.';
+    else p.textContent = 'Use your browser’s menu and choose “Install app” or “Add to Home screen”. On Android, open this page in Chrome.';
+    this.body.append(p);
+    if (this.installPrompt && !installed) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'install-btn';
+      btn.textContent = 'Install Force Life';
+      btn.addEventListener('click', async () => {
+        const ev = this.installPrompt!;
+        this.installPrompt = null;
+        await ev.prompt();
+        const choice = await ev.userChoice;
+        p.textContent = choice.outcome === 'accepted' ? 'Installed. Look for Force Life on your home screen.' : 'Not installed. You can install it any time from this menu.';
+        btn.remove();
+      });
+      this.body.append(btn);
+    }
   }
 
   private about() {

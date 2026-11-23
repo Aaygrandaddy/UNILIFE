@@ -1438,3 +1438,131 @@ body[data-film='clean'] .banner,
 body[data-film='clean'] .ride-panel {
   display: none !important;
 }
+
+/* ---------- 0.6: daily tasks ---------- */
+.daily {
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+  border-top: 1px solid var(--panel-border);
+  font-size: 12.5px;
+}
+.daily li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #e6e2d6;
+}
+.daily li span {
+  color: #6ee7a0;
+  font-variant-numeric: tabular-nums;
+}
+.daily li.is-done {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.daily .daily-head {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* ---------- 0.6: Style app ---------- */
+.style-row {
+  display: grid;
+  gap: 6px;
+}
+.swatches,
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid var(--ph-line);
+  cursor: pointer;
+}
+.swatch.is-on,
+.chip.is-on {
+  border-color: #1d4ed8;
+}
+.swatch.ankara {
+  background: conic-gradient(#e4572e 0 25%, #17bebb 0 50%, #ffc914 0 75%, #7b2d8b 0);
+}
+.chip {
+  padding: 6px 10px;
+  border-radius: 99px;
+  border: 2px solid var(--ph-line);
+  background: #fff;
+  color: var(--ph-fg);
+  font: 600 12px var(--body);
+  cursor: pointer;
+}
+
+/* ---------- 0.6: first-time coach ---------- */
+.coach {
+  position: absolute;
+  z-index: 13;
+  left: 50%;
+  bottom: 176px;
+  transform: translateX(-50%);
+  width: min(460px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(29, 63, 115, 0.92);
+  border: 1px solid rgba(242, 193, 78, 0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+.coach small {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.coach p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.coach button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: var(--text);
+  font: 600 13px var(--body);
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  .coach {
+    bottom: auto;
+    top: 64px;
+  }
+}
+body[data-film] .coach {
+  display: none !important;
+}
+
+.install-btn {
+  margin-top: 8px;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--gold);
+  color: #11161d;
+  font: 700 15px var(--body);
+  cursor: pointer;
+}

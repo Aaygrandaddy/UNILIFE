@@ -1,6 +1,6 @@
 {
   "name": "force-life",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Force Life: open-world Nigerian campus game",
   "scripts": {
     "dev": "vite",
