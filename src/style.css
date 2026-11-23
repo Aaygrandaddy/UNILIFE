@@ -1412,3 +1412,29 @@ kbd {
   border-radius: 8px;
   padding: 8px 10px;
 }
+
+/* ---------- debug filming mode (only reachable with ?debug) ---------- */
+body[data-film='play'] .controls-hint,
+body[data-film='play'] .bottom-hud,
+body[data-film='play'] #phone-button,
+body[data-film='play'] #menu-button,
+body[data-film='play'] .mobile-controls,
+body[data-film='play'] .mission,
+body[data-film='play'] .toast,
+body[data-film='play'] .banner,
+body[data-film='play'] .prompt,
+body[data-film='clean'] .topbar,
+body[data-film='clean'] .mission,
+body[data-film='clean'] .radar,
+body[data-film='clean'] .speedo,
+body[data-film='clean'] .controls-hint,
+body[data-film='clean'] .bottom-hud,
+body[data-film='clean'] #phone-button,
+body[data-film='clean'] #menu-button,
+body[data-film='clean'] .mobile-controls,
+body[data-film='clean'] .prompt,
+body[data-film='clean'] .toast,
+body[data-film='clean'] .banner,
+body[data-film='clean'] .ride-panel {
+  display: none !important;
+}

@@ -28,6 +28,7 @@ import type { SaveData } from './online/backend';
 declare const __APP_VERSION__: string;
 
 const TIME_SCALE = 1; // game minutes per real second
+let timeScaleOverride = 1; // debug filming: speeds up the clock for time-lapses
 const SPEED_LIMIT_KMH = 40;
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -204,6 +205,8 @@ async function boot() {
   };
   const absMinutes = () => state.day * 1440 + state.minutes;
   let driving: Vehicle | null = null;
+  let cineCam: { p: THREE.Vector3; t: THREE.Vector3 } | null = null; // debug filming camera
+  let showMarkers = true; // debug filming can hide objective beams
   let engineInput: Parameters<Sound['engineUpdate']>[0] = null;
   let stepDist = 0;
   let honkCooldown = 2;
@@ -469,7 +472,7 @@ async function boot() {
 
   function update(dt: number) {
     elapsed += dt;
-    state.minutes += dt * TIME_SCALE;
+    state.minutes += dt * TIME_SCALE * timeScaleOverride;
     if (state.minutes >= 1440) {
       state.minutes -= 1440;
       state.day++;
@@ -645,7 +648,7 @@ async function boot() {
       const targets = m.targets.map((id) => pois[id]).filter(Boolean);
       guide.forEach((t, i) => {
         if (!markers[i] || !t) return;
-        markers[i].visible = true;
+        markers[i].visible = showMarkers;
         markers[i].position.set(t.x, 0, t.z);
         markers[i].scale.setScalar(indoors ? 0.45 : 1);
         markers[i].children[1].scale.setScalar(1 + Math.sin(elapsed * 3) * 0.12);
@@ -781,6 +784,13 @@ async function boot() {
 
   const camTarget = new THREE.Vector3();
   function updateCamera(dt: number) {
+    if (cineCam) {
+      // debug filming: a scripted camera position and target
+      camera.position.copy(cineCam.p);
+      camera.lookAt(cineCam.t);
+      focus.copy(cineCam.t);
+      return;
+    }
     if (rides.riding && rides.vehicle) {
       focus.copy(rides.vehicle.pos);
       rides.updateCamera(camera, dt);
@@ -927,7 +937,8 @@ async function boot() {
   if (!backend.me) setTimeout(() => phone.toggle(true), 600);
   hud.showBanner('FORCE LIFE', `Resumption day at ${UNI.short}, ${UNI.town}. Follow the yellow marker to the checkpoint.`, 5000);
 
-  if (new URLSearchParams(location.search).has('debug')) {
+  // Testing and filming tools: only in development builds or builds made with VITE_DEBUG_TOOLS=1, never on the live site.
+  if ((import.meta.env.DEV || import.meta.env.VITE_DEBUG_TOOLS === '1') && new URLSearchParams(location.search).has('debug')) {
     Object.assign(window, {
       uni: {
         state,
@@ -945,6 +956,45 @@ async function boot() {
         enter: (b: string) => enterInterior(interiors.byBuilding(b)!),
         pois,
         warp: (n: number) => (warp = Math.max(1, Math.floor(n))),
+        // ---- filming mode: the game advances only when step() is called, one frame at a time ----
+        film: (on: boolean) => {
+          renderer.setAnimationLoop(on ? null : loop);
+          clock.getDelta();
+        },
+        step: (n = 1, dt = 1 / 24) => {
+          for (let i = 0; i < n; i++) {
+            update(dt);
+            input.endFrame();
+          }
+          renderer.render(scene, camera);
+        },
+        hold: (code: string, on: boolean) => input.hold(code, on),
+        cam: (p: number[] | null, t?: number[]) => {
+          cineCam = p && t ? { p: new THREE.Vector3(p[0], p[1], p[2]), t: new THREE.Vector3(t[0], t[1], t[2]) } : null;
+        },
+        timeScale: (n: number) => (timeScaleOverride = n),
+        markers: (on: boolean) => (showMarkers = on),
+        hudMode: (mode: 'full' | 'play' | 'clean') => {
+          document.body.dataset.film = mode;
+        },
+        player: () => {
+          const p = player.group.position;
+          return { x: p.x, z: p.z, yaw: playerYaw, driving: !!driving, speed: driving ? driving.speed : 0 };
+        },
+        phone: (open: boolean) => phone.toggle(open),
+        book: (tier: 'keke' | 'car' | 'luxury', dest: string) => {
+          const place = places.find((x) => x.id === dest)!;
+          rides.book(tier, place, player.group.position, 0);
+        },
+        board: () => {
+          rides.board();
+          player.group.visible = false;
+        },
+        rideCam: (m: 'chase' | 'side' | 'overhead' | 'cinematic') => {
+          rides.camMode = m;
+          rides.renderPanel();
+        },
+        ridePhase: () => rides.phase,
         ride: () => {
           const v = rides.vehicle;
           return v ? { phase: rides.phase, x: +v.pos.x.toFixed(1), z: +v.pos.z.toFixed(1), speed: +v.speed.toFixed(1), idx: v.ai?.idx, n: v.ai?.pts.length, arrived: v.ai?.arrived, pts: v.ai?.pts.map((q) => [Math.round(q.x), Math.round(q.y)]) } : null;
@@ -962,7 +1012,7 @@ async function boot() {
 
   let lastReal = performance.now();
   let warp = 1; // debug fast-forward: game updates per drawn frame
-  renderer.setAnimationLoop(() => {
+  function loop() {
     const now = performance.now();
     const realDt = (now - lastReal) / 1000;
     lastReal = now;
@@ -992,7 +1042,8 @@ async function boot() {
       fpsFrames = 0;
       fpsTime = 0;
     }
-  });
+  }
+  renderer.setAnimationLoop(loop);
 }
 
 boot();

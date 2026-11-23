@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Production build: `npm run build` (output in `dist/`). Add `?fps` to the URL to show the frame counter, or `?debug` to expose `window.uni` helpers (teleport, set time, drive a vehicle, enter a room, fast-forward with `uni.warp(n)`).
+Production build: `npm run build` (output in `dist/`). Add `?fps` to the URL to show the frame counter. In development (`npm run dev`) or a build made with `VITE_DEBUG_TOOLS=1`, `?debug` exposes `window.uni` helpers (never on the live site) (teleport, set time, drive a vehicle, enter a room, fast-forward with `uni.warp(n)`).
 
 ## Code map
 

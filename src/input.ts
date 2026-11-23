@@ -107,6 +107,12 @@ export class Input {
     });
   }
 
+  /** Hold or release a key from code (used by the debug filming mode). */
+  hold(code: string, on: boolean) {
+    if (on) this.virtual.add(code);
+    else this.virtual.delete(code);
+  }
+
   down(...codes: string[]) {
     return codes.some((c) => this.keys.has(c) || this.virtual.has(c));
   }
